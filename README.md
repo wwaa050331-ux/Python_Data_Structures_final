@@ -17,6 +17,7 @@
 ---
 
 # 📖 Chapter 09. 정렬 알고리즘 심화 분석 (week9) 
+
 > 1. 기본 정렬 알고리즘 (Selection, Bubble, Insertion)
 
 ---
@@ -808,6 +809,172 @@ class AVLTree:
 ### 💡 출제자 시선 지라시 (AVL 트리 요약)
 1. **`height` 변수의 갱신 연산 타이밍:** `_rightRotate`나 `_leftRotate` 코드 안에서 포인터를 변경한 뒤 반드시 **`tNode.height = max(...) + 1`**을 수행하여 높이를 실시간으로 업데이트해주어야 합니다. 이 공식 유도 과정에 빈칸 구멍이 뚫릴 확률이 매우 높습니다.
 2. **이중 회전(Double Rotation)의 순서:** LR 상태나 RL 상태에서 어떤 자식을 먼저 타깃으로 잡고 1차 회전을 시키는지 (`tNode.left = self._leftRotate(tNode.left)`) 코드가 내려가는 방향과 연결을 손으로 매칭할 줄 알아야 주관식을 온전히 풀 수 있습니다.
+
+---
+# 📖 Chapter 12. 해시테이블 (week12)  
+
+
+## 1. 핵심 개념 및 이론 총정리 (객관식 20% 대비)
+
+* **해시 테이블(Hash Table):** 키(Key)를 해시 함수에 대입해 주소(Slot)를 계산한 뒤, 값(Value)을 매핑하는 자료구조입니다. 평균 시간 복잡도는 **$O(1)$**로 매우 빠릅니다.
+* **해시 충돌(Collision):** 서로 다른 입력 키가 같은 해시 주소를 갖게 되는 현상입니다. 이를 해결하기 위한 2대 방법이 시험 출제 핵심입니다.
+  1. **체이닝 (Chaining):** 충돌이 나면 같은 인덱스에 **연결 리스트(Linked List)나 배열 리스트**를 엮어서 고리에 고리를 물듯 데이터를 저장합니다.
+  2. **개방 주소법 (Open Addressing):** 충돌이 나면 빈 공간을 찾아 떠납니다. 대표적으로 바로 다음 칸을 확인하는 **선형 탐사(Linear Probing)**가 있습니다.
+* **적재율 ($\alpha = n/m$):** 테이블 전체 크기($m$) 대비 채워진 원소 수($n$)의 비율입니다. 특히 개방 주소법에서는 이 비율이 높으면 성능이 급격히 나빠지므로 상한선(보통 0.7~0.8)을 넘으면 테이블 크기를 2배로 키우고 **재해싱(Rehashing)**을 해야 합니다.
+* **SHA-256:** 어떤 길이의 입력이든 무조건 **256비트(32바이트) 고정 길이**로 암호화하는 알고리즘입니다. 입력이 아주 찔끔만 바뀌어도 출력이 완전히 뒤집히는 **눈사태 효과(Avalanche Effect)**와 단방향성이 특징입니다.
+
+---
+
+### 2. 해시 테이블 전체 소스코드 분석 (빠짐없이 완벽 복원)
+
+#### ① 체이닝 구조 해시 테이블 (`ListHashTable`) (★출제 확률 100%)
+교재 7~11페이지에 등장하는 체이닝 기반 해시 테이블입니다. 과제 미구현 함수들을 포함하여 완벽하게 채워진 전체 코드입니다.
+
+```python
+class ListHashTable:
+    def __init__(self, n: int):
+        # ★시험 포인트: 2차원 리스트 컴프리헨션으로 빈 방(Bucket) n개 생성
+        self._table = [[] for i in range(n)] 
+        self._numItems = 0
+
+    # 나눈 나머지 해시 함수 (Division Method)
+    def _hash(self, x: int) -> int:
+        return x % len(self._table)
+
+    # [과제 정답] insert() - 새 항목을 항상 해당 슬롯의 맨 앞(0번째 인덱스)에 배치
+    def insert(self, x):
+        slot = self._hash(x)
+        self._table[slot].insert(0, x)  # 맨 앞에 삽입하여 O(1) 유지
+        self._numItems += 1
+
+    # [과제 정답] search() - 일치하는 항목의 (슬롯 번호, 리스트 내부 인덱스) 반환
+    def search(self, x):
+        slot = self._hash(x)
+        if len(self._table[slot]) == 0:
+            return (None, None)  # 슬롯이 완전히 비어있음
+        else:
+            try:
+                i = self._table[slot].index(x)  # 리스트 내부 탐색
+                return (slot, i)
+            except ValueError:
+                return (None, None)  # 슬롯에 다른 값은 있으나 x는 없음
+
+    # [과제 정답] delete() - 항목 삭제 및 성공 여부 반환
+    def delete(self, x) -> bool:
+        slot = self._hash(x)
+        if x in self._table[slot]:
+            self._table[slot].remove(x)
+            self._numItems -= 1
+            return True
+        return False
+
+    # [과제 정답] clear() - 전체 테이블 청소 후 슬롯 수 반환
+    def clear(self) -> int:
+        slot_cnt = len(self._table)
+        self._table = [[] for i in range(slot_cnt)]
+        self._numItems = 0
+        return slot_cnt
+
+    # [과제 정답] 상위/하위 슬롯 상태 출력 (head/tail)
+    def head(self, slotnums=5):
+        for i in range(min(slotnums, len(self._table))):
+            print(f"> Slot-{i}:", end=" ")
+            if len(self._table[i]) == 0: print("<Empty>")
+            else:
+                for item in self._table[i]: print(item, end=" ")
+                print()
+
+    def tail(self, slotnums=5):
+        start = max(0, len(self._table) - slotnums)
+        for i in range(start, len(self._table)):
+            print(f"> Slot-{i}:", end=" ")
+            if len(self._table[i]) == 0: print("<Empty>")
+            else:
+                for item in self._table[i]: print(item, end=" ")
+                print()
+```
+## ② 문자열을 숫자로 변환하는 해시 함수 (교재 12~13p)
+한글이나 알파벳 같은 문자열을 UTF-8 바이트 코드로 쪼개어 가중치를 곱해 합산하는 기법입니다.
+
+```Python
+def hash_string(key: str, table_size: int) -> int:
+    keys = key.encode('utf-8')  # ★시험 포인트: 문자열을 바이트 배열로 변환
+    total = 0
+    for char in keys:
+        total += char  # 각 문자의 아스키/유니코드 값을 합산
+    return total % table_size
+```
+## ③ 개방 주소법 — 선형 탐사 해시 테이블 (OpenAddressedHashTable) (★출제 확률 100%)
+교재 14~17페이지에 등장하는 선형 탐사(Linear Probing) 기반 테이블입니다. 삭제된 자리에 유령 기호 상수(_DELETED)를 매핑하는 포인터 제어 흐름이 주관식 빈칸 및 서술형 0순위입니다.
+
+```Python
+class OpenAddressedHashTable:
+    def __init__(self, n: int):
+        self._table = [None] * n
+        self._numItems = 0
+        # ★시험 포인트: 원래 데이터가 있었다가 삭제된 자리를 뜻하는 유령 기호 상수 정의
+        self._DELETED = -54321 
+
+    def _hash(self, x: int) -> int:
+        return x % len(self._table)
+
+    # 삽입 연산: 충돌 발생 시 옆 칸(선형 탐사)으로 이동하며 빈자리 탐색
+    def insert(self, x):
+        if self._numItems >= len(self._table):
+            return  # 테이블이 꽉 참 (Overflow)
+
+        slot = self._hash(x)
+        # None(빈자리)이거나 _DELETED(삭제된 자리)를 만날 때까지 옆으로 이동
+        while self._table[slot] is not None and self._table[slot] != self._DELETED:
+            slot = (slot + 1) % len(self._table)  # 원형 배열 형태 순환 이동
+
+        self._table[slot] = x
+        self._numItems += 1
+
+    # 검색 연산: None을 만나면 탐색을 중단하지만, _DELETED를 만나면 멈추지 않고 계속 전진
+    def search(self, x) -> int:
+        slot = self._hash(x)
+        start_slot = slot
+
+        while self._table[slot] is not None:
+            if self._table[slot] == x:
+                return slot  # 찾았으면 해당 인덱스(슬롯 번호) 반환
+            
+            slot = (slot + 1) % len(self._table)
+            if slot == start_slot:  # 한 바퀴 다 돌았으면 종료
+                break
+
+        return None  # 최종적으로 없으면 None 반환
+
+    # 삭제 연산 (★출제 확률 100%)
+    def delete(self, x) -> bool:
+        slot = self.search(x)  # 먼저 위치를 검색함
+        if slot is not None:
+            # ★시험 포인트: 원소를 그냥 None으로 지우면 안 되고 무조건 _DELETED 상수를 박아넣어야 함
+            self._table[slot] = self._DELETED 
+            self._numItems -= 1
+            return True
+        return False
+```
+
+---
+
+## 3. 개방 주소법에서 DELETED 기호 상수를 사용하는 절대적인 이유 (★서술형 출제 확정)
+선형 탐사법에서 데이터를 삭제할 때, 그 자리를 그냥 공백(None)으로 비워두면 치명적인 검색 오류가 발생합니다.
+
+[예시 디버깅]
+
+해시 함수 결과가 똑같이 5로 귀결되는 값 25, 35, 45가 차례대로 인서트되었다고 가정해 봅시다.
+
+선형 탐사에 의해 25는 5번, 35는 6번, 45는 7번 슬롯에 꽉차게 적재됩니다.
+
+이 상황에서 중간에 낀 35(6번 슬롯)를 그냥 None으로 싹 비워버렸다고 칩시다.
+
+그 후 컴퓨터에게 45를 찾으라고 명령하면, 컴퓨터는 최초 해시 슬롯인 5번(25)을 본 뒤 충돌인 것을 인지하고 다음 칸인 6번 슬롯을 봅니다.
+
+이때 6번 슬롯이 None으로 뚫려 있는 것을 본 컴퓨터는 "아, 이 주소 대역 뒤에는 원래 충돌 데이터가 쌓인 적이 없었구나!"라고 오판하여 7번 슬롯에 45가 엄연히 살아있음에도 불구하고 검색을 강제 중단(Not Found)하는 대참사가 벌어집니다.
+
+따라서 원래 데이터가 채워져 있었다가 지워진 유령 자리임을 표시해 주어, "나는 지워졌으니 검색할 때는 멈추지 말고 다음 칸도 계속 파고내려가 봐!"라고 알려주는 가이드라인 지표(_DELETED)가 필수적인 것입니다.
 
 ---
 
