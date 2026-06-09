@@ -456,10 +456,14 @@ def radixSort(A):
 
 ### ① 노드 정의 클래스 (`TreeNode`)
 노드는 데이터 값(`item`), 왼쪽 자식 가리킴(`left`), 오른쪽 자식 가리킴(`right`)으로 구성됩니다.
+TreeNode: 데이터를 담고 양옆을 가리키는 '부품'의 설계도
+
+BinarySearchTree: 그 부품들을 총괄하고, 시작점(_root)이 어디인지만 쥐고 있는 '전체 시스템'의 설계도  
+
 
 ```python
 class TreeNode:
-    def __init__(self, newItem=None, left=None, right=None):
+    def __init__(self, newItem=None, left=None, right=None): #초기화를 시켜주는 init(초기화) 함수 쓰지 않으면 호출할 때 마다 변수를 작성해야해서 함수로 초기화
         self.item = newItem  # 노드에 저장할 데이터 (key)
         self.left = left     # 왼쪽 자식 노드 포인터 지시자
         self.right = right   # 오른쪽 자식 노드 포인터 지시자
