@@ -455,7 +455,15 @@ def radixSort(A):
 
 ---
 
-## 2. 노드 구조와 BST 기본 메서드 코드 분석
+## 2. 노드 구조와 BST 기본 메서드 코드 분석  
+
+### 기타
+is_empty: _root is None 인가? (O/X 확인)  
+
+clear: _root = None 으로 리셋! (초기화)
+
+max_depth: 왼쪽, 오른쪽 중 큰 층수에 + 1 해서 올라오기! (재귀 탐색)  
+
 
 ### ① 노드 정의 클래스 (`TreeNode`)
 노드는 데이터 값(`item`), 왼쪽 자식 가리킴(`left`), 오른쪽 자식 가리킴(`right`)으로 구성됩니다.
@@ -624,6 +632,207 @@ BST의 특성상 가장 작은 값은 트리의 최좌측 말단에 위치하므
 
 ---
 
+## 응용 1,2,3  
+
+---
+
+### 1. 실무형 인덱스 노드(IndexNode) 구조
+* **개념**: 실제 서비스 환경이나 데이터베이스(DB)에서는 트리 노드 내부에 무거운 전체 데이터를 직접 저장하지 않습니다. 
+* **구조 (`IndexNode`)**: `(item, page, left, right)`로 구성됩니다.
+  * `item`: 정렬 및 탐색의 기준이 되는 **Key** (예: 메뉴명, 학번).
+  * `page`: 실제 상세 데이터가 담긴 **원본 객체의 포인터(지시자)** (예: `Menu` 객체, `Test` 객체).
+* **장점**: 대용량 데이터를 다룰 때 트리를 매우 가볍고 효율적으로 유지할 수 있습니다.
+
+### 2. 수식 트리(Expression Tree) 구축 및 표기법 변환
+* **구축 원리 (`construct_binary_tree`)**: 문자열 수식에서 **연산자 우선순위가 가장 낮은 연산자**를 먼저 찾아 분리 기준(루트 노드)으로 삼습니다. 그래야 해당 연산자가 가장 마지막에 계산되기 때문입니다.
+* **트리 순회(Traversal) 종류**:
+  * **전위 순회(Preorder)**: `Root -> Left -> Right` $\rightarrow$ 전위 표기법(Prefix) (A+B)C==+ABC
+  * **중위 순회(Inorder)**: `Left -> Root -> Right` $\rightarrow$ 중위 표기법(Infix) 생성 (A+B)C==A+BC
+  * **후위 순회(Postorder)**: `Left -> Right -> Root` $\rightarrow$ 후위 표기법(Postfix) 생성 (A+B)C==AB+C
+
+### 3. 트리 기반 다항 연산 평가 (`evaluate_binary_tree`)
+* 수식 트리를 실제 연산할 때는 **후위 순회(Postorder Traversal)**와 **스택(Stack)** 구조를 결합하여 사용합니다.
+* **동작 메커니즘**:
+  1. `root.left`와 `root.right`를 재귀적으로 먼저 방문하여 하위 연산을 수행합니다.
+  2. 방문한 노드가 **숫자(피연산자)**이면 스택에 `Push`합니다.
+  3. 방문한 노드가 **연산자**이면 스택에서 피연산자 2개를 `Pop`하여 이항 연산을 수행한 뒤 결과를 다시 `Push`합니다.
+
+### 4. 🚨 [교수님 빈출] 편향 트리(Skewed Tree)와 최악의 깊이
+* **문제 상황**: 학번 `2022001`부터 `2022074`까지와 같이 **이미 정렬된 데이터**를 일반 이진 탐색 트리에 연속 삽입하는 경우에 발생합니다.
+* **현상**: 트리가 양옆으로 예쁘게 뻗지 못하고, 한쪽 방향으로만 일렬로 길게 자라는 **편향 트리(Skewed Tree)**가 됩니다. 노드가 74개일 때 트리의 깊이(Depth)도 똑같이 `74`가 나오는 심각한 비효율이 발생합니다.
+* **결과 및 시간 복잡도**: 이진 트리의 최대 장점인 분할 탐색 능력을 잃고 일반 연결 리스트(Linked List)와 똑같아집니다. 따라서 평균 탐색 속도인 $O(\log n)$을 보장하지 못하고, 최악의 시간 복잡도인 **$O(n)$**으로 성능이 손상됩니다.
+
+---
+
+## 💻 전체 소스 코드 구현 (`cafeteria_and_expression_tree.py`)
+
+```python
+# =====================================================================
+# PART 1. [응용] 인덱스 노드 기반 카페 메뉴 & 성적 관리 자료구조
+# =====================================================================
+
+class IndexNode:
+    """인덱스 역할을 할 이진 탐색 트리의 노드 클래스"""
+    def __init__(self, newitem=None, source=None, left=None, right=None):
+        self.item = newitem     # 검색 키 (메뉴명 또는 학번)
+        self.page = source      # 원본 데이터 객체 지시자
+        self.left = left        # 왼쪽 자식 노드
+        self.right = right      # 오른쪽 자식 노드
+
+
+class Menu:
+    """카페 메뉴 원본 데이터 클래스"""
+    def __init__(self, menu=None, price=None, category=None):
+        self.menu = menu
+        self.price = price
+        self.category = category
+
+
+class Test:
+    """학생 성적 원본 데이터 클래스"""
+    def __init__(self, Id=None, Name=None, Class=None, Total=None, Grade=None):
+        self.Id = Id
+        self.Name = Name
+        self.Class = Class
+        self.Total = Total
+        self.Grade = Grade
+
+
+class BinarySearchTree:
+    """실무형 인덱스 노드를 사용하는 이진 탐색 트리"""
+    def __init__(self):
+        self._root = None
+
+    def insert(self, newItem, page):
+        """데이터 삽입 (Key값과 원본 객체 주소를 함께 전달받음)"""
+        self._root = self._insertItem(self._root, newItem, page)
+
+    def _insertItem(self, tNode: IndexNode, newItem, page) -> IndexNode:
+        if tNode is None:
+            return IndexNode(newItem, page, None, None)
+        if newItem < tNode.item:
+            tNode.left = self._insertItem(tNode.left, newItem, page)
+        else:
+            tNode.right = self._insertItem(tNode.right, newItem, page)
+        return tNode
+
+    def search(self, key) -> IndexNode:
+        """키값 기반 노드 검색"""
+        return self._searchItem(self._root, key)
+
+    def _searchItem(self, tNode: IndexNode, key) -> IndexNode:
+        if tNode is None:
+            return None
+        if key == tNode.item:
+            return tNode
+        elif key < tNode.item:
+            return self._searchItem(tNode.left, key)
+        else:
+            return self._searchItem(tNode.right, key)
+
+    def maxDepth(self, tNode: IndexNode) -> int:
+        """트리의 최대 깊이(층수) 계산"""
+        if tNode is None:
+            return 0
+        left_depth = self.maxDepth(tNode.left)
+        right_depth = self.maxDepth(tNode.right)
+        return max(left_depth, right_depth) + 1
+
+
+# =====================================================================
+# PART 2. [실습] 수식 트리(Expression Tree) 파싱 및 연산 평가
+# =====================================================================
+
+class ExpressionTree:
+    """문자열 수식을 이진 트리로 변환하고 계산하는 클래스"""
+    def __init__(self, expression):
+        self._operators = {'+': 1, '-': 1, '*': 2, '/': 2}
+        self._root = self.construct_binary_tree(expression)
+
+    def find_priority_operator(self, expression):
+        """우선순위가 가장 낮은 연산자의 인덱스를 수식의 뒤에서부터 검색"""
+        operator_index = -1
+        max_precedence = 99
+        for i in range(len(expression) - 1, -1, -1):
+            char = expression[i]
+            if char in self._operators:
+                if self._operators[char] <= max_precedence:
+                    operator_index = i
+                    max_precedence = self._operators[char]
+        return operator_index
+
+    def construct_binary_tree(self, expression):
+        """재귀 호출을 통한 수식 트리 빌드"""
+        if len(expression) == 0:
+            return None
+        operator_index = self.find_priority_operator(expression)
+        if operator_index == -1:
+            return IndexNode(expression)  # 피연산자 노드 생성
+            
+        operator = expression[operator_index]
+        node = IndexNode(operator)
+        node.left = self.construct_binary_tree(expression[:operator_index])
+        node.right = self.construct_binary_tree(expression[operator_index + 1:])
+        return node
+
+    def evaluate_binary_tree(self, root):
+        """후위 순회 알고리즘과 스택을 활용한 수식 연산 평가"""
+        stack = []
+        if root is not None:
+            stack.extend(self.evaluate_binary_tree(root.left))
+            stack.extend(self.evaluate_binary_tree(root.right))
+            if str(root.item).isdigit():
+                stack.append(int(root.item))
+            else:
+                operand2 = stack.pop()
+                operand1 = stack.pop()
+                if root.item == '+': result = operand1 + operand2
+                elif root.item == '-': result = operand1 - operand2
+                elif root.item == '*': result = operand1 * operand2
+                elif root.item == '/': result = operand1 / operand2
+                stack.append(result)
+        return stack
+
+    def preorder(self, tNode: IndexNode):
+        if tNode is not None:
+            print(tNode.item, end=' ')
+            self.preorder(tNode.left)
+            self.preorder(tNode.right)
+
+
+# =====================================================================
+# PART 3. 🧪 종합 실행 및 검증 시스템
+# =====================================================================
+if __name__ == "__main__":
+    print("--- [응용-1] 카페 메뉴 트리 테스트 ---")
+    menuTree = BinarySearchTree()
+    menu_list = [('에스프레소', 3.0, 'COFFEE'), ('아메리카노', 3.0, 'COFFEE'), ('키위', 4.5, 'JUICE')]
+    
+    for menu, price, cat in menu_list:
+        newMenu = Menu(menu, price, cat)
+        menuTree.insert(menu, newMenu)
+
+    found = menuTree.search("키위")
+    if found:
+        print(f">> Found(key={found.item}) {found.page.menu} {found.page.price} {found.page.category}\n")
+
+    print("--- [교수님 최애 문제] 이미 정렬된 학번 데이터 삽입 (편향 트리 발생 예시) ---")
+    testTree = BinarySearchTree()
+    # 2022001부터 2022005까지 정렬된 채로 순서대로 삽입 시 상황 시뮬레이션
+    for id_num in ["2022001", "2022002", "2022003", "2022004", "2022005"]:
+        newTest = Test(id_num, "민ㅇㅇ", "A", 88, "B+")
+        testTree.insert(id_num, newTest)
+        
+    print(f"삽입한 데이터 수: 5개")
+    print(f"측정된 트리의 최대 깊이(Depth): {testTree.maxDepth(testTree._root)}층")
+    print("⚠️ 결론: 데이터가 정렬된 채 들어와서 깊이가 데이터 수와 동일해지는 '편향 트리'가 증명됨! (최악 복잡도 O(n))\n")
+
+    print("--- [응용-3] 수식 트리 및 표기법 순회 테스트 ---")
+    expr = "3+5*2"
+    exprTree = ExpressionTree(expr)
+    print(f"입력된 중위 표기식: {expr}")
+    print("전위 순회(Prefix) 결과: ", end=""); exprTree.preorder(exprTree._root); print()
+    print(f"후위 계산 스택 최종 결과값: {exprTree.evaluate_binary_tree(exprTree._root)[0]}")
 ## 5. 교수님이 변별력을 위해 출제할 수 있는 심화 포인트  
 
 ## ① 노드 삭제 연산(_deleteNode)의 3가지 분기 케이스 (★ 서술형 유력)
