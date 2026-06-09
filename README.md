@@ -833,6 +833,8 @@ if __name__ == "__main__":
     print(f"입력된 중위 표기식: {expr}")
     print("전위 순회(Prefix) 결과: ", end=""); exprTree.preorder(exprTree._root); print()
     print(f"후위 계산 스택 최종 결과값: {exprTree.evaluate_binary_tree(exprTree._root)[0]}")
+```
+
 ## 5. 교수님이 변별력을 위해 출제할 수 있는 심화 포인트  
 
 ## ① 노드 삭제 연산(_deleteNode)의 3가지 분기 케이스 (★ 서술형 유력)
